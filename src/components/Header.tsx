@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, ShieldCheck, Lock, RefreshCw, Calendar } from 'lucide-react';
+import { Clock, ShieldCheck, Lock, RefreshCw } from 'lucide-react';
 import { CategoryMode, DayKey, MealType } from '../types';
 import { MEAL_META, MENU } from '../data/menuData';
 
@@ -12,7 +12,6 @@ interface HeaderProps {
   selectedMeal: MealType;
   isAdmin: boolean;
   onOpenAdminPortal: () => void;
-  dayNumber?: number;
   timeUntilRefresh?: string;
 }
 
@@ -25,7 +24,6 @@ export const Header: React.FC<HeaderProps> = ({
   selectedMeal,
   isAdmin,
   onOpenAdminPortal,
-  dayNumber = 1,
   timeUntilRefresh = ''
 }) => {
   const isNowSelected = mode === 'mess' && selectedDay === todayKey && selectedMeal === currentMeal;

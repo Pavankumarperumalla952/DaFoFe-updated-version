@@ -9,7 +9,6 @@ interface FeedbackFeedProps {
   selectedMeal: MealType;
   entries: FeedbackEntry[];
   onUpvote: (id: string) => void;
-  dayNumber?: number;
 }
 
 export const FeedbackFeed: React.FC<FeedbackFeedProps> = ({
@@ -17,8 +16,7 @@ export const FeedbackFeed: React.FC<FeedbackFeedProps> = ({
   selectedDay,
   selectedMeal,
   entries,
-  onUpvote,
-  dayNumber = 1
+  onUpvote
 }) => {
   const [feedScope, setFeedScope] = useState<'current' | 'all'>('current');
   const [ratingFilter, setRatingFilter] = useState<'all' | 'low' | 'high'>('all');

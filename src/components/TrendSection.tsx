@@ -4,10 +4,9 @@ import { TrendingUp } from 'lucide-react';
 
 interface TrendSectionProps {
   entries: FeedbackEntry[];
-  dayNumber?: number;
 }
 
-export const TrendSection: React.FC<TrendSectionProps> = ({ entries, dayNumber = 1 }) => {
+export const TrendSection: React.FC<TrendSectionProps> = ({ entries }) => {
   // Generate the last 7 dates YYYY-MM-DD
   const days: { dateKey: string; label: string; isToday: boolean }[] = [];
   for (let i = 6; i >= 0; i--) {

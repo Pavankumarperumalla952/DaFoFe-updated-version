@@ -4,8 +4,7 @@ import {
   getCurrentMealTime,
   getTodayKey,
   INITIAL_ENTRIES,
-  getDateString,
-  getSystemDayNumber
+  getDateString
 } from './data/menuData';
 import { Header } from './components/Header';
 import { CategoryToggle } from './components/CategoryToggle';
@@ -36,7 +35,6 @@ export default function App() {
 
   // 24-Hour Daily Cycle State
   const [currentDateStr, setCurrentDateStr] = useState<string>(() => getDateString(0));
-  const [dayNumber, setDayNumber] = useState<number>(() => getSystemDayNumber());
   const [timeUntilDailyRefresh, setTimeUntilDailyRefresh] = useState<string>('');
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
@@ -68,7 +66,6 @@ export default function App() {
       if (today !== currentDateStr) {
         setCurrentDateStr(today);
         setSelectedDay(getTodayKey());
-        setDayNumber(getSystemDayNumber());
       }
 
       // Calculate countdown to midnight (next 24h refresh)
@@ -186,7 +183,6 @@ export default function App() {
         selectedMeal={selectedMeal}
         isAdmin={authState.isAdmin}
         onOpenAdminPortal={handleOpenAdminPortal}
-        dayNumber={dayNumber}
         timeUntilRefresh={timeUntilDailyRefresh}
       />
 
@@ -272,12 +268,10 @@ export default function App() {
               selectedMeal={selectedMeal}
               entries={dailyStudentEntries}
               onUpvote={handleUpvote}
-              dayNumber={dayNumber}
             />
 
             <TrendSection
               entries={allEntries}
-              dayNumber={dayNumber}
             />
           </div>
         </div>
