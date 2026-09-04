@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if request is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user has admin privileges
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+        request.auth.token.email == 'pavankumarperumalla952@gmail.com'
+      );
+    }
+
+    // User profile collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAuthenticated() && (
+        isAdmin() || 
+        (request.auth.uid == userId && 
+         (!('role' in request.resource.data) || request.resource.data.role != 'admin' || request.auth.token.email == 'pavankumarperumalla952@gmail.com'))
+      );
+    }
+
+    // Admins metadata collection: Only verified admins or the super admin can add/update/delete admins
+    match /admins/{adminId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || (isAuthenticated() && request.auth.token.email == 'pavankumarperumalla952@gmail.com');
+    }
+
+    // Feedbacks collection
+    match /feedbacks/{feedbackId} {
+      // Students (anonymous or logged in) and admins can read feedback
+      allow read: if isAuthenticated();
+      
+      // Anyone (including anonymous students) can submit feedback with rating 1-5
+      allow create: if request.resource.data.rating >= 1 
+                    && request.resource.data.rating <= 5;
+                    
+      // Anyone can increment upvotes, or admin can update
+      allow update: if (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes']))
+                    || isAdmin();
+                    
+      // Only authorized admins can delete feedback
+      allow delete: if isAdmin();
+    }
+
+    // System configuration and rating cycle metadata
+    match /system/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}

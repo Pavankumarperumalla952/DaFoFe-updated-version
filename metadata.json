@@ -1,0 +1,6 @@
+{
+  "name": "Mess Token - Hostel Food Feedback",
+  "description": "DaFoFe - Daily Food Feedback app with anonymous mess/canteen ratings, Firestore cloud persistence, and a secure private Admin Dashboard for hostel management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

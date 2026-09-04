@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --font-oswald: 'Oswald', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-sans: 'Inter', sans-serif;
+  
+  --color-green-950: #152019;
+  --color-green-900: #1E2B22;
+  --color-green-800: #2B3A2E;
+  --color-green-600: #41573F;
+  --color-steel-100: #EDEEE8;
+  --color-steel-200: #D9DBD1;
+  --color-steel-300: #C9CDC5;
+  --color-paper: #F4F1E6;
+  --color-turmeric: #E8A93A;
+  --color-turmeric-dark: #B87F1E;
+  --color-rust: #B5484D;
+  --color-rust-dark: #7E2F32;
+  --color-leaf: #5C8A56;
+  --color-leaf-dark: #3B5E38;
+  --color-ink: #20241F;
+  --color-ink-soft: #585B52;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #F4F1E6;
+  color: #20241F;
+}
+
+.font-oswald {
+  font-family: 'Oswald', sans-serif;
+}
+
+.font-mono-plex {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.neo-shadow {
+  box-shadow: 6px 6px 0px 0px rgba(30, 43, 34, 1);
+}
+
+.neo-shadow-lg {
+  box-shadow: 8px 8px 0px 0px rgba(30, 43, 34, 1);
+}
+
+.neo-shadow-accent {
+  box-shadow: 4px 4px 0px 0px rgba(232, 169, 58, 1);
+}
+
+.neo-shadow-sm {
+  box-shadow: 3px 3px 0px 0px rgba(30, 43, 34, 1);
+}
+

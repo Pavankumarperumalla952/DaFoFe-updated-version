@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "FeedbackEntry": {
+      "collection": "feedbacks",
+      "fields": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the feedback entry"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category mode: mess or canteen"
+        },
+        "day": {
+          "type": "string",
+          "description": "Day of the week (monday, tuesday, etc.)"
+        },
+        "meal": {
+          "type": "string",
+          "description": "Meal slot (tiffin, lunch, snacks, dinner)"
+        },
+        "rating": {
+          "type": "number",
+          "description": "Rating score from 1 to 5"
+        },
+        "reasons": {
+          "type": "array",
+          "description": "List of quality tags"
+        },
+        "comment": {
+          "type": "string",
+          "description": "Optional student comment"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "ISO timestamp of submission"
+        },
+        "date": {
+          "type": "string",
+          "description": "YYYY-MM-DD date string"
+        },
+        "upvotes": {
+          "type": "number",
+          "description": "Upvotes count"
+        }
+      }
+    },
+    "AdminUser": {
+      "collection": "admins",
+      "fields": {
+        "uid": {
+          "type": "string",
+          "description": "Admin UID from Firebase Authentication"
+        },
+        "email": {
+          "type": "string",
+          "description": "Authorized Admin Email"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role (admin or super_admin)"
+        },
+        "addedAt": {
+          "type": "string",
+          "description": "ISO timestamp of authorization"
+        },
+        "addedBy": {
+          "type": "string",
+          "description": "Email or UID of admin who authorized this user"
+        }
+      }
+    }
+  }
+}
