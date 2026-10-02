@@ -30,7 +30,7 @@ export const FeedbackFeed: React.FC<FeedbackFeedProps> = ({
   const scopedEntries = entries.filter((entry) => {
     if (feedScope === 'current') {
       if (mode === 'mess') {
-        return entry.category === 'mess' && entry.day === selectedDay && entry.meal === selectedMeal;
+        return entry.category === 'mess' && entry.meal === selectedMeal;
       }
       return entry.category === 'canteen';
     }
@@ -185,17 +185,25 @@ export const FeedbackFeed: React.FC<FeedbackFeedProps> = ({
                   {getRatingBadge(entry.rating)}
                 </div>
 
-                {/* Issue tags if any */}
+                {/* Flag tags if any */}
                 {entry.reasons && entry.reasons.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-1.5">
-                    {entry.reasons.map((r, i) => (
-                      <span
-                        key={i}
-                        className="font-mono-plex text-[10px] font-bold bg-[#F6E1E1] text-[#7E2F32] border border-[#B5484D]/30 px-2 py-0.5 rounded"
-                      >
-                        {r}
-                      </span>
-                    ))}
+                    {entry.reasons.map((r, i) => {
+                      let tagStyle = 'bg-[#F6E1E1] text-[#7E2F32] border-[#B5484D]/30';
+                      if (r === 'Good') {
+                        tagStyle = 'bg-[#E3EEDE] text-[#3B5E38] border-[#5C8A56]/40';
+                      } else if (r === 'Average') {
+                        tagStyle = 'bg-[#FEF3D6] text-[#B87F1E] border-[#E8A93A]/40';
+                      }
+                      return (
+                        <span
+                          key={i}
+                          className={`font-mono-plex text-[10px] font-bold border px-2 py-0.5 rounded ${tagStyle}`}
+                        >
+                          {r}
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
 

@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
+  initializeFirestore,
   getFirestore,
   collection,
   doc,
@@ -17,7 +18,6 @@ import {
 } from 'firebase/firestore';
 import {
   getAuth,
-  signInAnonymously,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
@@ -25,17 +25,98 @@ import {
   User
 } from 'firebase/auth';
 import firebaseConfig from '../firebase-applet-config.json';
-import { FeedbackEntry } from './types';
+import { FeedbackEntry, MealType, UserMealReview } from './types';
 import { INITIAL_ENTRIES, SYSTEM_START_DATE, getSystemDayNumber } from './data/menuData';
+
+// Storage keys for single meal review constraint
+const STUDENT_STORAGE_KEY = 'dafofe_student_uid';
+const REVIEWED_MEALS_STORAGE_KEY = 'dafofe_user_reviewed_meals_v1';
+
+let inMemoryStudentId: string | null = null;
+let inMemoryReviewedMeals: Record<string, Partial<Record<MealType, UserMealReview>>> = {};
+
+/**
+ * Retrieve or generate a persistent unique anonymous student identifier token.
+ * This guarantees a consistent individual person identity across reloads and sessions.
+ */
+export function getPersistentStudentId(): string {
+  try {
+    let studentId = localStorage.getItem(STUDENT_STORAGE_KEY);
+    if (!studentId) {
+      const randomPart = Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+      studentId = `student_${randomPart}`;
+      localStorage.setItem(STUDENT_STORAGE_KEY, studentId);
+    }
+    inMemoryStudentId = studentId;
+    return studentId;
+  } catch {
+    if (!inMemoryStudentId) {
+      inMemoryStudentId = auth.currentUser?.uid || `student_${Math.random().toString(36).substring(2, 9)}${Date.now().toString(36)}`;
+    }
+    return inMemoryStudentId;
+  }
+}
+
+/**
+ * Retrieve all meal reviews logged by this person stored in localStorage.
+ * Format: { [dateString: string]: Partial<Record<MealType, UserMealReview>> }
+ */
+export function getLocalReviewedMeals(): Record<string, Partial<Record<MealType, UserMealReview>>> {
+  try {
+    const raw = localStorage.getItem(REVIEWED_MEALS_STORAGE_KEY);
+    if (!raw) return inMemoryReviewedMeals;
+    const parsed = JSON.parse(raw);
+    inMemoryReviewedMeals = { ...inMemoryReviewedMeals, ...parsed };
+    return inMemoryReviewedMeals;
+  } catch {
+    return inMemoryReviewedMeals;
+  }
+}
+
+/**
+ * Save a meal review for this person into local storage for immediate client-side lock.
+ */
+export function saveLocalReviewedMeal(review: UserMealReview): void {
+  try {
+    if (!inMemoryReviewedMeals[review.date]) {
+      inMemoryReviewedMeals[review.date] = {};
+    }
+    inMemoryReviewedMeals[review.date][review.meal] = review;
+
+    const data = getLocalReviewedMeals();
+    if (!data[review.date]) {
+      data[review.date] = {};
+    }
+    data[review.date][review.meal] = review;
+    localStorage.setItem(REVIEWED_MEALS_STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn('Could not cache reviewed meal locally:', e);
+  }
+}
 
 // Initialize Firebase App
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Firestore
-export const db =
+// Initialize Firestore with long-polling to guarantee reliable connectivity across preview iframes and networks
+const targetDbId =
   firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
-    ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-    : getFirestore(app);
+    ? firebaseConfig.firestoreDatabaseId
+    : undefined;
+
+let firestoreDb;
+try {
+  firestoreDb = initializeFirestore(
+    app,
+    {
+      experimentalForceLongPolling: true
+    },
+    targetDbId
+  );
+} catch {
+  firestoreDb = targetDbId ? getFirestore(app, targetDbId) : getFirestore(app);
+}
+
+export const db = firestoreDb;
 
 // Initialize Firebase Auth
 export const auth = getAuth(app);
@@ -48,26 +129,10 @@ const SYSTEM_COLLECTION = 'system';
 // Primary Designated Super Admin Email
 export const PRIMARY_SUPER_ADMIN_EMAIL = 'pavankumarperumalla952@gmail.com';
 
-// Ensure anonymous sign-in is initialized for students
-let anonymousInitPromise: Promise<any> | null = null;
-export function ensureAnonymousAuth() {
-  if (!auth.currentUser) {
-    if (!anonymousInitPromise) {
-      anonymousInitPromise = signInAnonymously(auth)
-        .catch((err) => {
-          console.warn('Anonymous student session init warning:', err);
-        })
-        .finally(() => {
-          anonymousInitPromise = null;
-        });
-    }
-    return anonymousInitPromise;
-  }
+// Ensure student session is initialized (students use unique persistent client ID)
+export function ensureAnonymousAuth(): Promise<void> {
   return Promise.resolve();
 }
-
-// Trigger initial anonymous auth check
-ensureAnonymousAuth();
 
 export interface AdminAuthState {
   user: User | null;
@@ -377,6 +442,7 @@ export function subscribeToFeedbacks(
           return; // omit legacy sample data from Day 1 rating system
         }
 
+        const entryAuthorId = data.authorId || undefined;
         list.push({
           id: docSnap.id,
           category: data.category || (data.mode as any) || 'mess',
@@ -392,8 +458,25 @@ export function subscribeToFeedbacks(
               : data.timestamp
               ? new Date(data.timestamp).getTime()
               : Date.now(),
-          upvotes: typeof data.upvotes === 'number' ? data.upvotes : 0
+          upvotes: typeof data.upvotes === 'number' ? data.upvotes : 0,
+          authorId: entryAuthorId
         });
+      });
+
+      // Synchronize student's own logged reviews into local cache
+      const currentStudentId = getPersistentStudentId();
+      list.forEach((item) => {
+        if (item.category === 'mess' && item.meal && item.authorId === currentStudentId) {
+          saveLocalReviewedMeal({
+            meal: item.meal,
+            date: item.date,
+            rating: item.rating,
+            reasons: item.reasons,
+            comment: item.comment,
+            ts: item.ts,
+            entryId: item.id
+          });
+        }
       });
 
       // Silently attempt to purge any legacy mock seeds found in Firestore
@@ -456,12 +539,23 @@ export async function resetRatingSystemToDay1(): Promise<{ success: boolean; del
 
 /**
  * Save new feedback entry permanently into Firestore (Accessible anonymously by students)
+ * Enforces single review per meal per person for Morning Tiffin, Afternoon Lunch, Evening Snacks, and Night Dinner.
  */
 export async function addFeedbackToFirestore(entry: FeedbackEntry): Promise<void> {
   await ensureAnonymousAuth();
-  const docRef = doc(db, FEEDBACK_COLLECTION, entry.id);
+  const persistentUid = getPersistentStudentId();
+  const authorId = entry.authorId || auth.currentUser?.uid || persistentUid;
+
+  // Use a deterministic document ID for mess meals per date, meal, and person:
+  // rev_<YYYY-MM-DD>_<meal>_<authorId>
+  const docId =
+    entry.category === 'mess' && entry.meal && entry.date
+      ? `rev_${entry.date}_${entry.meal}_${authorId.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+      : entry.id;
+
+  const docRef = doc(db, FEEDBACK_COLLECTION, docId);
   await setDoc(docRef, {
-    id: entry.id,
+    id: docId,
     category: entry.category,
     day: entry.day,
     meal: entry.meal,
@@ -471,8 +565,22 @@ export async function addFeedbackToFirestore(entry: FeedbackEntry): Promise<void
     date: entry.date,
     ts: entry.ts,
     timestamp: new Date(entry.ts).toISOString(),
-    upvotes: entry.upvotes || 0
+    upvotes: entry.upvotes || 0,
+    authorId: authorId
   });
+
+  // Lock review in local storage cache immediately
+  if (entry.category === 'mess' && entry.meal) {
+    saveLocalReviewedMeal({
+      meal: entry.meal,
+      date: entry.date,
+      rating: entry.rating,
+      reasons: entry.reasons,
+      comment: entry.comment,
+      ts: entry.ts,
+      entryId: docId
+    });
+  }
 }
 
 /**

@@ -15,6 +15,17 @@ export interface FeedbackEntry {
   date: string; // YYYY-MM-DD
   ts: number;
   upvotes?: number;
+  authorId?: string;
+}
+
+export interface UserMealReview {
+  meal: MealType;
+  date: string;
+  rating: number;
+  reasons: string[];
+  comment: string;
+  ts: number;
+  entryId: string;
 }
 
 export interface MealInfo {

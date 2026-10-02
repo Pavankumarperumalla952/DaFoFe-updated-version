@@ -36,10 +36,10 @@ service cloud.firestore {
 
     // Feedbacks collection
     match /feedbacks/{feedbackId} {
-      // Students (anonymous or logged in) and admins can read feedback
-      allow read: if isAuthenticated();
+      // Students and visitors can read community pulse feedback
+      allow read: if true;
       
-      // Anyone (including anonymous students) can submit feedback with rating 1-5
+      // Anyone (students) can submit feedback with rating 1-5
       allow create: if request.resource.data.rating >= 1 
                     && request.resource.data.rating <= 5;
                     
@@ -53,7 +53,7 @@ service cloud.firestore {
 
     // System configuration and rating cycle metadata
     match /system/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
   }

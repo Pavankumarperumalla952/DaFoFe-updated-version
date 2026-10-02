@@ -874,18 +874,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     {/* Reasons Tags */}
                     {item.reasons && item.reasons.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1.5">
-                        {item.reasons.map((reason, idx) => (
-                          <span
-                            key={idx}
-                            className={`px-2.5 py-0.5 rounded-md text-xs font-mono-plex font-semibold border ${
-                              item.rating <= 2
-                                ? 'bg-[#B5484D]/10 text-[#B5484D] border-[#B5484D]/30'
-                                : 'bg-[#EDEEE8] text-[#20241F] border-[#1E2B22]/20'
-                            }`}
-                          >
-                            {reason}
-                          </span>
-                        ))}
+                        {item.reasons.map((reason, idx) => {
+                          let badgeStyle =
+                            item.rating <= 2
+                              ? 'bg-[#B5484D]/10 text-[#B5484D] border-[#B5484D]/30'
+                              : 'bg-[#EDEEE8] text-[#20241F] border-[#1E2B22]/20';
+                          if (reason === 'Good') {
+                            badgeStyle = 'bg-[#5C8A56]/15 text-[#3B5E38] border-[#5C8A56]/30';
+                          } else if (reason === 'Average') {
+                            badgeStyle = 'bg-[#E8A93A]/20 text-[#B87F1E] border-[#E8A93A]/40';
+                          } else if (reason === 'Bad') {
+                            badgeStyle = 'bg-[#B5484D]/15 text-[#B5484D] border-[#B5484D]/30';
+                          }
+                          return (
+                            <span
+                              key={idx}
+                              className={`px-2.5 py-0.5 rounded-md text-xs font-mono-plex font-semibold border ${badgeStyle}`}
+                            >
+                              {reason}
+                            </span>
+                          );
+                        })}
                       </div>
                     )}
 

@@ -65,17 +65,21 @@ export const HostelInfoModal: React.FC<HostelInfoModalProps> = ({
           </div>
         </div>
 
-        {/* Anonymous Feedback Policy */}
-        <div className="bg-[#1E2B22] text-[#EDEEE8] border-2 border-[#1E2B22] rounded-xl p-4 sm:p-5 space-y-1.5 shadow-[4px_4px_0px_0px_rgba(232,169,58,1)]">
+        {/* Anonymous Feedback Policy & Single Review Rule */}
+        <div className="bg-[#1E2B22] text-[#EDEEE8] border-2 border-[#1E2B22] rounded-xl p-4 sm:p-5 space-y-2 shadow-[4px_4px_0px_0px_rgba(232,169,58,1)]">
           <div className="flex items-center gap-2">
             <ShieldAlert className="w-4 h-4 text-[#E8A93A]" />
             <p className="font-oswald font-bold text-sm text-[#E8A93A] uppercase tracking-wider">
-              Student Anonymity Guarantee
+              Student Anonymity & Single Review Rule
             </p>
           </div>
           <p className="text-xs text-[#C9CDC5] leading-relaxed">
             All reviews submitted through this applet are completely unlinked from student roll numbers or identity credentials. Aggregated statistics are directly reviewed by the Mess Committee and Chief Warden every Monday for catering audits.
           </p>
+          <div className="bg-[#2B3A2E] border border-[#5C8A56]/40 p-2.5 rounded-lg text-xs text-[#E3EEDE]">
+            <span className="font-bold text-[#E8A93A]">Single Review Rule: </span>
+            Each person can submit only one review per meal (Morning Tiffin, Afternoon Lunch, Evening Snacks, and Night Dinner) each day to maintain fair and accurate feedback.
+          </div>
         </div>
 
         {/* Full Weekly Menu Overview */}

@@ -42,6 +42,10 @@
         "upvotes": {
           "type": "number",
           "description": "Upvotes count"
+        },
+        "authorId": {
+          "type": "string",
+          "description": "Anonymous student identifier token"
         }
       }
     },

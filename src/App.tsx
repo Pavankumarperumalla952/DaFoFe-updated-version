@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { CategoryMode, DayKey, FeedbackEntry, MealType } from './types';
+import { CategoryMode, DayKey, FeedbackEntry, MealType, UserMealReview } from './types';
 import {
   getCurrentMealTime,
   getTodayKey,
   INITIAL_ENTRIES,
-  getDateString
+  getDateString,
+  getMealFullTitle,
+  MEAL_ORDER
 } from './data/menuData';
 import { Header } from './components/Header';
 import { CategoryToggle } from './components/CategoryToggle';
 import { DaySelector } from './components/DaySelector';
-import { MealTabs } from './components/MealTabs';
+import { MealReviewTracker } from './components/MealReviewTracker';
 import { ItemCard } from './components/ItemCard';
 import { FeedbackTicket } from './components/FeedbackTicket';
 import { FeedbackFeed } from './components/FeedbackFeed';
@@ -24,7 +26,10 @@ import {
   incrementFeedbackUpvote,
   subscribeToAuthState,
   resetRatingSystemToDay1,
-  AdminAuthState
+  AdminAuthState,
+  getPersistentStudentId,
+  getLocalReviewedMeals,
+  saveLocalReviewedMeal
 } from './firebase';
 
 export default function App() {
@@ -37,6 +42,11 @@ export default function App() {
   const [currentDateStr, setCurrentDateStr] = useState<string>(() => getDateString(0));
   const [timeUntilDailyRefresh, setTimeUntilDailyRefresh] = useState<string>('');
 
+  // Track each meal reviewed by this person (Morning Tiffin, Afternoon Lunch, Evening Snacks, Night Dinner)
+  const [userMealReviews, setUserMealReviews] = useState<Record<string, Partial<Record<MealType, UserMealReview>>>>(
+    () => getLocalReviewedMeals()
+  );
+
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'student' | 'admin'>('student');
@@ -45,6 +55,17 @@ export default function App() {
     isAdmin: false,
     loading: true
   });
+
+  // Multi-tab synchronization for reviewed meals
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'dafofe_user_reviewed_meals_v1') {
+        setUserMealReviews(getLocalReviewedMeals());
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Track Firebase Auth state & Admin privileges
   useEffect(() => {
@@ -103,6 +124,62 @@ export default function App() {
     return allEntries.filter((e) => e.date === currentDateStr);
   }, [allEntries, currentDateStr]);
 
+  // Synchronize student's own logged reviews for the day from the live Firestore feed
+  useEffect(() => {
+    const currentStudentId = getPersistentStudentId();
+    const fromEntries: Partial<Record<MealType, UserMealReview>> = {};
+
+    allEntries.forEach((entry) => {
+      if (
+        entry.category === 'mess' &&
+        entry.meal &&
+        entry.date === currentDateStr &&
+        (entry.authorId === currentStudentId || entry.id.endsWith(currentStudentId.replace(/[^a-zA-Z0-9_-]/g, '_')))
+      ) {
+        fromEntries[entry.meal] = {
+          meal: entry.meal,
+          date: entry.date,
+          rating: entry.rating,
+          reasons: entry.reasons,
+          comment: entry.comment,
+          ts: entry.ts,
+          entryId: entry.id
+        };
+      }
+    });
+
+    if (Object.keys(fromEntries).length > 0) {
+      setUserMealReviews((prev) => ({
+        ...prev,
+        [currentDateStr]: {
+          ...(prev[currentDateStr] || {}),
+          ...fromEntries
+        }
+      }));
+    }
+  }, [allEntries, currentDateStr]);
+
+  // Current student reviews for today
+  const todayReviews = useMemo(() => {
+    return userMealReviews[currentDateStr] || {};
+  }, [userMealReviews, currentDateStr]);
+
+  // Check if currently selected meal already has a review recorded for today
+  const existingReviewForSelectedMeal = useMemo(() => {
+    if (mode !== 'mess') return null;
+    return todayReviews[selectedMeal] || null;
+  }, [mode, todayReviews, selectedMeal]);
+
+  // Find next pending unreviewed meal to guide user
+  const nextPendingMeal = useMemo<MealType | null>(() => {
+    for (const m of MEAL_ORDER) {
+      if (!todayReviews[m]) {
+        return m;
+      }
+    }
+    return null;
+  }, [todayReviews]);
+
   const handleQuickJumpToNow = () => {
     setMode('mess');
     setSelectedDay(getTodayKey());
@@ -120,13 +197,52 @@ export default function App() {
   const handleNewEntry = async (
     entryData: Omit<FeedbackEntry, 'id' | 'ts' | 'date'>
   ): Promise<boolean> => {
+    // Enforce single review per meal per person rule
+    if (entryData.category === 'mess' && entryData.meal) {
+      if (todayReviews[entryData.meal]) {
+        console.warn(`Single review policy: ${entryData.meal} already reviewed today`);
+        return false;
+      }
+    }
+
+    const studentId = getPersistentStudentId();
+    const dateStr = getDateString(0);
+    const docId =
+      entryData.category === 'mess' && entryData.meal
+        ? `rev_${dateStr}_${entryData.meal}_${studentId.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+        : `entry-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
     const newEntry: FeedbackEntry = {
       ...entryData,
-      id: `entry-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      date: getDateString(0),
+      day: entryData.category === 'mess' ? getTodayKey() : entryData.day,
+      id: docId,
+      date: dateStr,
       ts: Date.now(),
-      upvotes: 0
+      upvotes: 0,
+      authorId: studentId
     };
+
+    // Immediately record locally so UI locks without delay
+    if (entryData.category === 'mess' && entryData.meal) {
+      const reviewRecord: UserMealReview = {
+        meal: entryData.meal,
+        date: dateStr,
+        rating: entryData.rating,
+        reasons: entryData.reasons,
+        comment: entryData.comment,
+        ts: newEntry.ts,
+        entryId: docId
+      };
+
+      saveLocalReviewedMeal(reviewRecord);
+      setUserMealReviews((prev) => ({
+        ...prev,
+        [dateStr]: {
+          ...(prev[dateStr] || {}),
+          [entryData.meal!]: reviewRecord
+        }
+      }));
+    }
 
     // Optimistically update local UI immediately
     setAllEntries((prev) => [newEntry, ...prev.filter((e) => e.id !== newEntry.id)]);
@@ -231,15 +347,12 @@ export default function App() {
           {/* Center Column: Meal Selector, Menu Items & Feedback Ticket (lg:col-span-5) */}
           <div className="lg:col-span-5 space-y-5">
             {mode === 'mess' && (
-              <div className="space-y-2">
-                <span className="font-mono-plex text-[10px] sm:text-xs uppercase font-bold text-[#585B52] tracking-wider">
-                  Select Meal Time
-                </span>
-                <MealTabs
-                  selectedMeal={selectedMeal}
-                  onSelectMeal={setSelectedMeal}
-                />
-              </div>
+              /* 1 Review Per Meal Policy & Progress Tracker */
+              <MealReviewTracker
+                reviewedMeals={todayReviews}
+                selectedMeal={selectedMeal}
+                onSelectMeal={setSelectedMeal}
+              />
             )}
 
             {/* Menu Items Card */}
@@ -255,8 +368,13 @@ export default function App() {
             <FeedbackTicket
               mode={mode}
               selectedDay={selectedDay}
+              todayKey={getTodayKey()}
               selectedMeal={selectedMeal}
               onSubmit={handleNewEntry}
+              existingReview={existingReviewForSelectedMeal}
+              onSelectMeal={setSelectedMeal}
+              onSelectDay={setSelectedDay}
+              nextPendingMeal={nextPendingMeal}
             />
           </div>
 

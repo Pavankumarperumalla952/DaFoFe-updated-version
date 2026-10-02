@@ -2,6 +2,21 @@ import { DayKey, DayMenuSchedule, FeedbackEntry, MealInfo, MealType } from '../t
 
 export const MEAL_ORDER: MealType[] = ['tiffin', 'lunch', 'snacks', 'dinner'];
 
+export function getMealFullTitle(meal: MealType): string {
+  switch (meal) {
+    case 'tiffin':
+      return 'Morning Tiffin';
+    case 'lunch':
+      return 'Afternoon Lunch';
+    case 'snacks':
+      return 'Evening Snacks';
+    case 'dinner':
+      return 'Night Dinner';
+    default:
+      return meal;
+  }
+}
+
 export const MEAL_META: Record<MealType, MealInfo> = {
   tiffin: { label: 'Tiffin', iconName: 'Coffee', time: '07:00 AM - 08:40 AM' },
   lunch: { label: 'Lunch', iconName: 'Sun', time: '12:00 PM - 01:00 PM' },
@@ -126,6 +141,9 @@ export const CANTEEN_ITEMS = [
 ];
 
 export const REASONS = [
+  'Good',
+  'Average',
+  'Bad',
   'Undercooked',
   'Overcooked',
   'Too spicy',
